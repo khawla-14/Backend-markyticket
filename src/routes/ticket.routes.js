@@ -5,7 +5,7 @@ const { verifyToken, isClient, isReceiver } = require('../middleware/auth');
 
 // Client routes
 router.post('/buy', [verifyToken, isClient], ticketController.buyTicket);
-router.post('/cancel', [verifyToken, isClient], ticketController.cancelTicket);
+router.get('/status/:ticketCode', verifyToken, ticketController.getTicketStatus);
 
 // Receiver routes
 router.post('/validate', [verifyToken, isReceiver], ticketController.validateTicket);

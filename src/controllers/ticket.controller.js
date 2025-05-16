@@ -1,8 +1,7 @@
 const db = require('../config/database');
-const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 
-// Buy a ticket for a trajet
+// Buy a ticket for a trajet - Simplified version
 exports.buyTicket = async (req, res) => {
     try {
         const { trajetId } = req.body;
@@ -35,9 +34,6 @@ exports.buyTicket = async (req, res) => {
         // Generate unique ticket code
         const ticketCode = uuidv4();
 
-        // Create QR code
-        const qrCode = await QRCode.toDataURL(ticketCode);
-
         // Create ticket
         await db.execute(
             'INSERT INTO Ticket (code, idClient, idTrajet, status, prix) VALUES (?, ?, ?, ?, ?)',
@@ -56,8 +52,8 @@ exports.buyTicket = async (req, res) => {
         res.json({
             message: 'Ticket purchased successfully',
             ticketCode,
-            qrCode,
-            newBalance
+            newBalance,
+            status: 'en_cours'
         });
     } catch (error) {
         await db.rollback();
@@ -66,7 +62,7 @@ exports.buyTicket = async (req, res) => {
     }
 };
 
-// Validate ticket (by receiver)
+// Validate ticket (by receiver) - Simplified version
 exports.validateTicket = async (req, res) => {
     try {
         const { ticketCode } = req.body;
@@ -85,10 +81,6 @@ exports.validateTicket = async (req, res) => {
             return res.status(404).json({ message: 'Ticket not found' });
         }
 
-        if (ticket.idReceveur !== receiverId) {
-            return res.status(403).json({ message: 'Unauthorized to validate this ticket' });
-        }
-
         if (ticket.status !== 'en_cours') {
             return res.status(400).json({ message: 'Ticket is not valid for validation' });
         }
@@ -99,10 +91,36 @@ exports.validateTicket = async (req, res) => {
             [ticketCode]
         );
 
-        res.json({ message: 'Ticket validated successfully' });
+        res.json({
+            message: 'Ticket validated successfully',
+            status: 'valide'
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error validating ticket' });
+    }
+};
+
+// Get ticket status
+exports.getTicketStatus = async (req, res) => {
+    try {
+        const { ticketCode } = req.params;
+        const [[ticket]] = await db.execute(
+            'SELECT status, prix FROM Ticket WHERE code = ?',
+            [ticketCode]
+        );
+
+        if (!ticket) {
+            return res.status(404).json({ message: 'Ticket not found' });
+        }
+
+        res.json({
+            status: ticket.status,
+            price: ticket.prix
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error getting ticket status' });
     }
 };
 
